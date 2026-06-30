@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #1F2937;
+  --color-midnight: #384959;
+  --color-steel: #6A89A7;
+  --color-mist: #BDDDFC;
+  --color-sky: #88BDF2;
+  --color-amber: #C05800;
+  --color-cream: #FDFBD4;
+  --color-cocoa: #713600;
+
+  --font-display: "Sora", sans-serif;
+  --font-body: "Inter", sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, sans-serif;
+  background-color: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
