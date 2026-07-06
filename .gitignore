@@ -1,0 +1,19 @@
+# Secret environment files
+.env
+**/.env
+
+# Node dependencies
+node_modules/
+**/node_modules/
+
+# Build files
+dist/
+**/dist/
+
+# Python cache
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# VS Code
+.vscode/
