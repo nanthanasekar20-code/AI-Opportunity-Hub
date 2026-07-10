@@ -1,4 +1,5 @@
 import subprocess
+from microsoft_scraper import fetch_microsoft_opportunities
 import csv
 import io
 from datetime import datetime
@@ -90,4 +91,13 @@ def get_kaggle_competitions():
         "source": "Kaggle",
         "count": len(active_competitions),
         "opportunities": active_competitions
+    }@app.get("/api/opportunities/microsoft")
+def get_microsoft_opportunities():
+
+    opportunities = fetch_microsoft_opportunities()
+
+    return {
+        "source": "Microsoft",
+        "count": len(opportunities),
+        "opportunities": opportunities
     }
