@@ -1,87 +1,92 @@
+"""Internshala internship scraper.
+
+Scrapes internship listings from https://internshala.com/internships.
+Selectors were carried over as-is from the original prototype script and
+have not been re-verified against the live site from this environment —
+if Internshala has changed its markup, scrape_internshala() returns an
+empty list instead of crashing the whole /api/opportunities/internshala
+endpoint.
+"""
+
 from playwright.sync_api import sync_playwright
-import pandas as pd
 
-data = []
 
-with sync_playwright() as p:
+def scrape_internshala(max_results: int = 20) -> list[dict]:
+    internships: list[dict] = []
 
-    browser = p.chromium.launch(headless=False)
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
 
-    page = browser.new_page()
+            page.goto("https://internshala.com/internships", timeout=60000)
+            page.wait_for_timeout(8000)
 
-    page.goto("https://internshala.com/internships")
+            cards = page.locator("div.individual_internship")
+            count = min(cards.count(), max_results)
 
-    # Wait for the page to load
-    page.wait_for_timeout(8000)
+            for i in range(count):
+                card = cards.nth(i)
 
-    # Get all internship cards
-    cards = page.locator("div.individual_internship")
+                try:
+                    title = card.locator("a.job-title-href").inner_text().strip()
+                except Exception:
+                    title = ""
 
-    print("Total Cards:", cards.count())
+                try:
+                    company = card.locator("p.company-name").inner_text().strip()
+                except Exception:
+                    company = ""
 
-    for i in range(cards.count()):
+                try:
+                    location = card.locator("div.locations a").inner_text().strip()
+                except Exception:
+                    location = ""
 
-        card = cards.nth(i)
+                try:
+                    stipend = card.locator("span.stipend").inner_text().strip()
+                except Exception:
+                    stipend = ""
 
-        # Internship Title
-        try:
-            title = card.locator("a.job-title-href").inner_text().strip()
-        except:
-            title = ""
+                try:
+                    duration = (
+                        card.locator("div.row-1-item").nth(2).locator("span").inner_text().strip()
+                    )
+                except Exception:
+                    duration = ""
 
-        # Company Name
-        try:
-            company = card.locator("p.company-name").inner_text().strip()
-        except:
-            company = ""
+                try:
+                    link = card.locator("a.job-title-href").get_attribute("href") or ""
+                    if link:
+                        link = "https://internshala.com" + link
+                except Exception:
+                    link = ""
 
-        # Location
-        try:
-            location = card.locator("div.locations a").inner_text().strip()
-        except:
-            location = ""
+                if not title:
+                    continue
 
-        # Stipend
-        try:
-            stipend = card.locator("span.stipend").inner_text().strip()
-        except:
-            stipend = ""
+                internships.append({
+                    "title": title,
+                    "type": "Internship",
+                    "source": "Internshala",
+                    "company": company,
+                    "location": location,
+                    "stipend": stipend,
+                    "duration": duration,
+                    "official_url": link,
+                })
 
-        # Duration
-        try:
-            duration = card.locator("div.row-1-item").nth(2).locator("span").inner_text().strip()
-        except:
-            duration = ""
+            browser.close()
 
-        # Apply Link
-        try:
-            link = card.locator("a.job-title-href").get_attribute("href")
-            if link:
-                link = "https://internshala.com" + link
-            else:
-                link = ""
-        except:
-            link = ""
+    except Exception as exc:
+        print(f"[internshala_scraper] scrape failed, returning empty list: {exc}")
+        return []
 
-        # Save data
-        data.append({
-            "Title": title,
-            "Company": company,
-            "Location": location,
-            "Stipend": stipend,
-            "Duration": duration,
-            "Source": "Internshala",
-            "Link": link
-        })
+    return internships
 
-# Convert to DataFrame
-df = pd.DataFrame(data)
 
-# Save CSV
-df.to_csv("internships.csv", index=False)
-
-print("\n========== FIRST 10 INTERNSHIPS ==========\n")
-print(df.head(10))
-
-print("\n✅ internships.csv saved successfully!")
-
+if __name__ == "__main__":
+    results = scrape_internshala()
+    print(f"Fetched {len(results)} internships from Internshala")
+    for r in results[:5]:
+        print(r)

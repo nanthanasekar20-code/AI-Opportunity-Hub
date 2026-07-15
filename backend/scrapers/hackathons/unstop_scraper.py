@@ -1,77 +1,77 @@
+"""Unstop opportunity scraper.
+
+Scrapes the opportunity cards listed on https://unstop.com. Selectors were
+carried over as-is from the original prototype script and have not been
+re-verified against the live site from this environment — if Unstop has
+changed its markup, scrape_unstop() returns an empty list instead of
+crashing the whole /api/opportunities/unstop endpoint.
+"""
+
 from playwright.sync_api import sync_playwright
-import pandas as pd
 
-data = []
 
-with sync_playwright() as p:
+def scrape_unstop(max_results: int = 20) -> list[dict]:
+    opportunities: list[dict] = []
 
-    browser = p.chromium.launch(headless=False)
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
 
-    page = browser.new_page()
+            page.goto("https://unstop.com", timeout=60000)
+            page.wait_for_timeout(10000)
 
-    # Open Unstop
-    page.goto("https://unstop.com", timeout=60000)
+            cards = page.locator("a.image_card")
+            count = min(cards.count(), max_results)
 
-    # Wait for page to load
-    page.wait_for_timeout(10000)
+            for i in range(count):
+                card = cards.nth(i)
 
-    print("Title:", page.title())
+                try:
+                    title = card.locator("h3.double-wrap").inner_text().strip()
+                except Exception:
+                    title = ""
 
-    # Opportunity cards
-    cards = page.locator("a.image_card")
+                try:
+                    mode = card.locator("span").nth(0).inner_text().strip()
+                except Exception:
+                    mode = ""
 
-    print("Total Cards:", cards.count())
+                try:
+                    price = card.locator("span").nth(1).inner_text().strip()
+                except Exception:
+                    price = ""
 
-    for i in range(cards.count()):
+                try:
+                    link = card.get_attribute("href") or ""
+                    if link.startswith("/"):
+                        link = "https://unstop.com" + link
+                except Exception:
+                    link = ""
 
-        card = cards.nth(i)
+                if not title:
+                    continue
 
-        # Title
-        try:
-            title = card.locator("h3.double-wrap").inner_text().strip()
-        except:
-            title = ""
+                opportunities.append({
+                    "title": title,
+                    "type": "Competition",
+                    "source": "Unstop",
+                    "mode": mode,
+                    "price": price,
+                    "official_url": link,
+                })
 
-        # Mode
-        try:
-            mode = card.locator("span").nth(0).inner_text().strip()
-        except:
-            mode = ""
+            browser.close()
 
-        # Price
-        try:
-            price = card.locator("span").nth(1).inner_text().strip()
-        except:
-            price = ""
+    except Exception as exc:
+        print(f"[unstop_scraper] scrape failed, returning empty list: {exc}")
+        return []
 
-        # Link
-        try:
-            link = card.get_attribute("href")
-            if link and link.startswith("/"):
-                link = "https://unstop.com" + link
-        except:
-            link = ""
+    return opportunities
 
-        print("--------------------------------")
-        print("Title :", title)
-        print("Mode  :", mode)
-        print("Price :", price)
-        print("Link  :", link)
 
-        data.append({
-            "Title": title,
-            "Mode": mode,
-            "Price": price,
-            "Source": "Unstop",
-            "Link": link
-        })
-
-# Save CSV
-df = pd.DataFrame(data)
-
-print("\n========== FIRST 10 OPPORTUNITIES ==========\n")
-print(df.head(10))
-
-df.to_csv("unstop.csv", index=False)
-
-print("\n✅ unstop.csv saved successfully!")
+if __name__ == "__main__":
+    results = scrape_unstop()
+    print(f"Fetched {len(results)} opportunities from Unstop")
+    for r in results[:5]:
+        print(r)

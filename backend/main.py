@@ -1,5 +1,4 @@
 import subprocess
-from microsoft_scraper import fetch_microsoft_opportunities
 import csv
 import io
 from datetime import datetime
@@ -7,6 +6,12 @@ from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+
+from microsoft_scraper import fetch_microsoft_opportunities
+from scrapers.hackathons.devpost_scraper import scrape_devpost
+from scrapers.hackathons.unstop_scraper import scrape_unstop
+from scrapers.internships.internshala_scraper import scrape_internshala
+from scrapers.jobs.google_scraper import scrape_google_jobs
 
 load_dotenv()
 
@@ -91,13 +96,64 @@ def get_kaggle_competitions():
         "source": "Kaggle",
         "count": len(active_competitions),
         "opportunities": active_competitions
-    }@app.get("/api/opportunities/microsoft")
+    }
+
+
+@app.get("/api/opportunities/microsoft")
 def get_microsoft_opportunities():
 
     opportunities = fetch_microsoft_opportunities()
 
     return {
         "source": "Microsoft",
+        "count": len(opportunities),
+        "opportunities": opportunities
+    }
+
+
+@app.get("/api/opportunities/devpost")
+def get_devpost_hackathons():
+
+    opportunities = scrape_devpost()
+
+    return {
+        "source": "Devpost",
+        "count": len(opportunities),
+        "opportunities": opportunities
+    }
+
+
+@app.get("/api/opportunities/unstop")
+def get_unstop_opportunities():
+
+    opportunities = scrape_unstop()
+
+    return {
+        "source": "Unstop",
+        "count": len(opportunities),
+        "opportunities": opportunities
+    }
+
+
+@app.get("/api/opportunities/internshala")
+def get_internshala_internships():
+
+    opportunities = scrape_internshala()
+
+    return {
+        "source": "Internshala",
+        "count": len(opportunities),
+        "opportunities": opportunities
+    }
+
+
+@app.get("/api/opportunities/google")
+def get_google_jobs():
+
+    opportunities = scrape_google_jobs()
+
+    return {
+        "source": "Google",
         "count": len(opportunities),
         "opportunities": opportunities
     }
