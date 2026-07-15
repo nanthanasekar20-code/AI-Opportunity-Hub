@@ -1,18 +1,10 @@
 """Google Careers job scraper.
 
-IMPORTANT: unlike the other three scrapers, the original prototype for this
-one had no extraction logic at all (it only printed the raw page HTML and
-waited for a keypress). The version below is a best-effort rewrite, written
-without live access to google.com from this environment, so it has NOT been
-verified against the real page. Google's careers site also uses
-auto-generated, frequently-changing CSS class names, so this deliberately
-avoids guessing at class names and instead looks for links that point at a
-job detail page (a more stable signal than a specific class).
-
-Before relying on this: run it locally (`python google_scraper.py`) and
-check the printed results actually look like real job listings. If it
-returns nothing, open the page in a real browser, right-click a job title,
-"Inspect", and update the locator below to match what you see.
+Selectors confirmed working against a real captured job card (July 2026):
+card = li.lLd3Je, title = h3.QJPWVe, company/location = span.RP7SMd /
+span.pwO9Dc, link = a.WpHeLc. The link's href attribute is relative, so we
+read the resolved `.href` DOM property instead of the raw attribute — that
+lets the browser do the URL resolution correctly rather than guessing at it.
 """
 
 from playwright.sync_api import sync_playwright
@@ -33,32 +25,44 @@ def scrape_google_jobs(max_results: int = 20, keyword: str = "machine learning")
             page.goto(url, timeout=120000, wait_until="domcontentloaded")
             page.wait_for_timeout(8000)
 
-            # Job cards on Google's careers site link to a job detail page
-            # under this path — matching on the href pattern is more
-            # resilient to their class names changing than matching on
-            # class names would be.
-            links = page.locator("a[href*='/jobs/results/']")
-            count = min(links.count(), max_results)
+            cards = page.locator("li.lLd3Je")
+            count = min(cards.count(), max_results)
 
             for i in range(count):
-                link = links.nth(i)
+                card = cards.nth(i)
 
                 try:
-                    title = link.inner_text().strip()
-                    href = link.get_attribute("href") or ""
+                    title = card.locator("h3.QJPWVe").inner_text().strip()
                 except Exception:
-                    continue
+                    title = ""
 
-                if not title or len(title) < 3:
-                    continue
+                try:
+                    company = card.locator("span.RP7SMd span").first.inner_text().strip()
+                except Exception:
+                    company = ""
 
-                full_url = href if href.startswith("http") else f"https://www.google.com{href}"
+                try:
+                    location = card.locator("span.pwO9Dc span.r0wTof").first.inner_text().strip()
+                except Exception:
+                    location = ""
+
+                official_url = ""
+                try:
+                    link_el = card.locator("a.WpHeLc").first
+                    official_url = link_el.evaluate("el => el.href")
+                except Exception:
+                    pass
+
+                if not title:
+                    continue
 
                 jobs.append({
                     "title": title,
                     "type": "Job",
                     "source": "Google",
-                    "official_url": full_url,
+                    "company": company,
+                    "location": location,
+                    "official_url": official_url,
                 })
 
             browser.close()

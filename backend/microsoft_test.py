@@ -1,333 +1,94 @@
-import requests
-import time
-import random
-from datetime import datetime, timezone
-
-
-SEARCH_URL = "https://apply.careers.microsoft.com/api/pcsx/search"
-BASE_URL = "https://apply.careers.microsoft.com"
-
-
-# For now, test only 2 keywords.
-# We will add all AI/ML keywords after confirming rate limiting is handled.
-SEARCH_KEYWORDS = [
-    "artificial intelligence",
-    "machine learning",
-]
-
-
-# Strong AI/ML terms used to filter irrelevant results
-AI_TERMS = [
-    "artificial intelligence",
-    "machine learning",
-    "deep learning",
-    "generative ai",
-    "genai",
-    "data science",
-    "data scientist",
-    "computer vision",
-    "natural language processing",
-    "nlp",
-    "llm",
-    "applied scientist",
-    "applied sciences",
-    "ai researcher",
-    "ml architect",
-    "coreai",
-]
-
-
-all_jobs = {}
-
-
-for keyword in SEARCH_KEYWORDS:
-
-    print("\n================================")
-    print(f"Searching: {keyword}")
-    print("================================")
-
-    start = 0
-
-    while True:
-
-        # Wait before every request
-        wait_time = random.uniform(2.5, 4.5)
-
-        print(f"\nWaiting {wait_time:.1f} seconds...")
-        time.sleep(wait_time)
-
-
-        params = {
-            "domain": "microsoft.com",
-            "query": keyword,
-            "location": "",
-            "start": start,
-            "sort_by": "timestamp",
-        }
-
-
-        response = requests.get(
-            SEARCH_URL,
-            params=params,
-            timeout=30
-        )
-
-
-        # Handle Microsoft's rate limit
-        if response.status_code == 429:
-
-            print("Rate limited by Microsoft.")
-            print("Waiting 60 seconds before retrying...")
-
-            time.sleep(60)
-
-            response = requests.get(
-                SEARCH_URL,
-                params=params,
-                timeout=30
-            )
-
-
-        # Stop if the retry still fails
-        if response.status_code == 429:
-
-            print("Still rate limited.")
-            print("Stopping this keyword for now.")
-
-            break
-
-
-        response.raise_for_status()
-
-
-        data = response.json()
-
-        positions = data["data"]["positions"]
-
-
-        print(
-            f"Page start={start}: "
-            f"{len(positions)} jobs received"
-        )
-
-
-        # No more jobs
-        if not positions:
-            print("No more results.")
-            break
-
-
-        for job in positions:
-
-            job_id = job.get("displayJobId")
-
-
-            # Skip jobs without an ID
-            if not job_id:
-                continue
-
-
-            # Skip duplicate jobs
-            if job_id in all_jobs:
-                continue
-
-
-            title = job.get("name", "")
-
-            category = job.get(
-                "department",
-                ""
-            )
-
-
-            searchable_text = (
-                f"{title} {category}"
-            ).lower()
-
-
-            # Check AI/ML relevance
-            is_ai_relevant = any(
-                term in searchable_text
-                for term in AI_TERMS
-            )
-
-
-            # Skip irrelevant jobs
-            if not is_ai_relevant:
-                continue
-
-
-            # Convert timestamp to readable date
-            posted_timestamp = job.get(
-                "postedTs"
-            )
-
-
-            posted_date = None
-
-
-            if posted_timestamp:
-
-                posted_date = datetime.fromtimestamp(
-                    posted_timestamp,
-                    tz=timezone.utc
-                ).strftime("%Y-%m-%d")
-
-
-            # Build official Microsoft job URL
-            position_url = job.get(
-                "positionUrl",
-                ""
-            )
-
-
-            official_url = (
-                BASE_URL + position_url
-            )
-
-
-            # Detect internship
-            title_lower = title.lower()
-
-
-            if "intern" in title_lower:
-
-                opportunity_type = "Internship"
-
-            else:
-
-                opportunity_type = "Job"
-
-
-            opportunity = {
-
-                "title": title,
-
-                "type": opportunity_type,
-
-                "source": "Microsoft",
-
-                "official_url": official_url,
-
-                "job_id": job_id,
-
-                "location": job.get(
-                    "locations",
-                    []
-                ),
-
-                "posted_date": posted_date,
-
-                "category": category,
-
-                "work_mode": job.get(
-                    "workLocationOption"
-                ),
-            }
-
-
-            # Store using Job ID
-            # This automatically removes duplicates
-            all_jobs[job_id] = opportunity
-
-
-        # Microsoft currently returns 10 per page.
-        # Fewer than 10 means we reached the last page.
-        if len(positions) < 10:
-
-            print("Reached final page.")
-
-            break
-
-
-        # Go to next page
-        start += 10
-
-
-# Convert dictionary to list
-opportunities = list(
-    all_jobs.values()
-)
-
-
-# Separate jobs and internships
-jobs = [
-
-    opportunity
-
-    for opportunity in opportunities
-
-    if opportunity["type"] == "Job"
-]
-
-
-internships = [
-
-    opportunity
-
-    for opportunity in opportunities
-
-    if opportunity["type"] == "Internship"
-]
-
-
-# Final summary
-print("\n\n================================")
-print("FINAL RESULTS")
-print("================================")
-
-print(
-    "TOTAL AI/ML OPPORTUNITIES:",
-    len(opportunities)
-)
-
-print(
-    "JOBS:",
-    len(jobs)
-)
-
-print(
-    "INTERNSHIPS:",
-    len(internships)
-)
-
-
-# Print collected opportunities
-for opportunity in opportunities:
-
-    print("\n--------------------------------")
-
-    print(
-        "Title:",
-        opportunity["title"]
-    )
-
-    print(
-        "Type:",
-        opportunity["type"]
-    )
-
-    print(
-        "Job ID:",
-        opportunity["job_id"]
-    )
-
-    print(
-        "Category:",
-        opportunity["category"]
-    )
-
-    print(
-        "Location:",
-        opportunity["location"]
-    )
-
-    print(
-        "Posted:",
-        opportunity["posted_date"]
-    )
-
-    print(
-        "Official URL:",
-        opportunity["official_url"]
-    )
+"""Unstop opportunity scraper.
+
+Unstop is an Angular single-page app: opportunity cards have no real href
+attribute in the DOM (navigation happens entirely via JS, not a normal
+link), so the URL can't be read off the card directly. Instead, each card
+is clicked, the resulting URL is captured, then we navigate back to the
+listing page before moving to the next card. This is slower than reading
+an href would be, but it's the only reliable way to get the real link here.
+"""
+
+from playwright.sync_api import sync_playwright
+
+
+def scrape_unstop(max_results: int = 15) -> list[dict]:
+    opportunities: list[dict] = []
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+
+            listing_url = "https://unstop.com"
+            page.goto(listing_url, timeout=60000)
+            page.wait_for_timeout(10000)
+
+            cards = page.locator("a.image_card")
+            count = min(cards.count(), max_results)
+
+            for i in range(count):
+                card = cards.nth(i)
+
+                try:
+                    title = card.locator("h3.double-wrap").inner_text().strip()
+                except Exception:
+                    title = ""
+
+                try:
+                    mode = card.locator("span").nth(0).inner_text().strip()
+                except Exception:
+                    mode = ""
+
+                try:
+                    price = card.locator("span").nth(1).inner_text().strip()
+                except Exception:
+                    price = ""
+
+                if not title:
+                    continue
+
+                # Click the card, capture where it navigates to, then return
+                # to the listing so the next card can be found the same way.
+                link = ""
+                try:
+                    card.click(timeout=10000)
+                    page.wait_for_timeout(3000)
+                    link = page.url
+                    page.go_back(timeout=15000)
+                    page.wait_for_timeout(3000)
+                    # cards is a live locator, re-fetch it after navigating back
+                    cards = page.locator("a.image_card")
+                except Exception:
+                    # If the click/navigation failed, make sure we're back on
+                    # the listing page before continuing to the next card.
+                    try:
+                        if page.url != listing_url:
+                            page.goto(listing_url, timeout=60000)
+                            page.wait_for_timeout(5000)
+                            cards = page.locator("a.image_card")
+                    except Exception:
+                        pass
+
+                opportunities.append({
+                    "title": title,
+                    "type": "Competition",
+                    "source": "Unstop",
+                    "mode": mode,
+                    "price": price,
+                    "official_url": link,
+                })
+
+            browser.close()
+
+    except Exception as exc:
+        print(f"[unstop_scraper] scrape failed, returning empty list: {exc}")
+        return []
+
+    return opportunities
+
+
+if __name__ == "__main__":
+    results = scrape_unstop()
+    print(f"Fetched {len(results)} opportunities from Unstop")
+    for r in results[:5]:
+        print(r)
