@@ -79,3 +79,7 @@ if __name__ == "__main__":
     print(f"Fetched {len(results)} jobs from Google Careers")
     for r in results[:5]:
         print(r)
+
+
+
+        
