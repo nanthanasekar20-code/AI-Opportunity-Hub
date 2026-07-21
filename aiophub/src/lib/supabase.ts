@@ -22,7 +22,7 @@ export type Profile = {
   email: string;
   full_name: string | null;
   avatar_url: string | null;
-  role: 'user' | 'admin' | 'super_admin';
+  role: 'student' | 'teacher' | 'admin';
   created_at: string;
   updated_at: string;
 };

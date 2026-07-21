@@ -93,7 +93,7 @@ export function ProfilePage() {
               {profile?.role && profile.role !== 'user' && (
                 <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 bg-primary-100 text-primary-700 text-xs font-medium rounded-full">
                   <Shield className="w-3 h-3" />
-                  {profile.role === 'super_admin' ? 'Super Admin' : 'Admin'}
+                  {profile.role === 'admin' ? 'Admin' : 'Teacher'}
                 </span>
               )}
             </div>
