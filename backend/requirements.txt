@@ -4,3 +4,5 @@ python-dotenv
 requests
 playwright
 kaggle
+
+supabase==2.9.1

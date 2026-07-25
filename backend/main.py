@@ -2,6 +2,7 @@ import subprocess
 import csv
 import io
 from datetime import datetime
+from db.insert_opportunities import insert_opportunities
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -113,13 +114,13 @@ def get_microsoft_opportunities():
 
 @app.get("/api/opportunities/devpost")
 def get_devpost_hackathons():
-
     opportunities = scrape_devpost()
-
+    result = insert_opportunities(opportunities)
     return {
         "source": "Devpost",
         "count": len(opportunities),
-        "opportunities": opportunities
+        "opportunities": opportunities,
+        "db_result": result
     }
 
 
